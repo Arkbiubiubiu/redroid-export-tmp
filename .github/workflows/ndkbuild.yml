@@ -10,17 +10,23 @@ jobs:
     steps:
       - name: Pull base
         run: docker pull redroid/redroid:13.0.0-latest
-      - name: Prepare libndk
+      - name: Prepare libndk and build.prop
         run: |
           curl -L -o libndk.zip https://github.com/supremegamers/vendor_google_proprietary_ndk_translation-prebuilt/archive/9324a8914b649b885dad6f2bfd14a67e5d1520bf.zip
           md5sum libndk.zip
           unzip -q libndk.zip
           mkdir -p ndk
           cp -r vendor_google_proprietary_ndk_translation-prebuilt-*/prebuilts ndk/system
+          docker create --name base redroid/redroid:13.0.0-latest
+          docker cp base:/system/build.prop ./system-build.prop
+          docker rm base
+          sed -i '/^ro.dalvik.vm.native.bridge=/d; /^ro.enable.native.bridge.exec=/d; /^ro.dalvik.vm.isa.arm=/d; /^ro.dalvik.vm.isa.arm64=/d' system-build.prop
+          printf '\nro.dalvik.vm.native.bridge=libndk_translation.so\nro.enable.native.bridge.exec=1\nro.dalvik.vm.isa.arm=x86\nro.dalvik.vm.isa.arm64=x86_64\n' >> system-build.prop
+          grep -E 'native.bridge|dalvik.vm.isa' system-build.prop
           cat > Dockerfile <<'DOCKER'
           FROM redroid/redroid:13.0.0-latest
           COPY ndk/system /system
-          RUN if [ -f /system/build.prop ]; then sed -i '/^ro.dalvik.vm.native.bridge=/d; /^ro.enable.native.bridge.exec=/d; /^ro.dalvik.vm.isa.arm=/d; /^ro.dalvik.vm.isa.arm64=/d' /system/build.prop; printf '\nro.dalvik.vm.native.bridge=libndk_translation.so\nro.enable.native.bridge.exec=1\nro.dalvik.vm.isa.arm=x86\nro.dalvik.vm.isa.arm64=x86_64\n' >> /system/build.prop; fi
+          COPY system-build.prop /system/build.prop
           DOCKER
       - name: Build
         run: docker build -t redroid-ndk:13 .
