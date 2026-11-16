@@ -1,0 +1,26 @@
+name: export-erstt
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Pull erstt image
+        run: docker pull erstt/redroid:13.0.0_ndk_ChromeOS
+      - name: Export
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq zstd
+          docker save erstt/redroid:13.0.0_ndk_ChromeOS | zstd -T0 -3 -o erstt-13.tar.zst
+          ls -lh erstt-13.tar.zst
+          split -b 1800M erstt-13.tar.zst erstt-13.tar.zst.part-
+          ls -lh erstt-13.tar.zst.part-*
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: erstt-redroid-13
+          name: erstt redroid 13 ndk ChromeOS
+          files: erstt-13.tar.zst.part-*
