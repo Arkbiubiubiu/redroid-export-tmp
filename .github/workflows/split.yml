@@ -1,0 +1,26 @@
+name: split-redroid
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Download existing asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download redroid-13 -R ${{ github.repository }} -p redroid.tar.zst.part-aa -D .
+      - name: Split into 100MB parts
+        run: |
+          split -b 100M redroid.tar.zst.part-aa redroid.part-
+          sha256sum redroid.part-* > SHA256SUMS
+          ls -lh redroid.part-* SHA256SUMS
+      - name: Upload parts
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: redroid-13
+          files: |
+            redroid.part-*
+            SHA256SUMS
