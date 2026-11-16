@@ -9,12 +9,19 @@ jobs:
     timeout-minutes: 40
     steps:
       - name: Pull image
-        run: docker pull redroid/redroid:13.0.0
+        run: |
+          for t in 13.0.0-latest 13.0.0_64only-latest 13.0.0 12.0.0-latest 11.0.0-latest; do
+            echo "Trying redroid/redroid:$t"
+            if docker pull redroid/redroid:$t; then echo "$t" > tag.txt; break; fi
+          done
+          test -s tag.txt
       - name: Export and compress
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq zstd
-          docker save redroid/redroid:13.0.0 | zstd -T0 -3 -o redroid.tar.zst
+          TAG=$(cat tag.txt)
+          echo "Exporting $TAG"
+          docker save redroid/redroid:$TAG | zstd -T0 -3 -o redroid.tar.zst
           ls -lh redroid.tar.zst
           split -b 1800M redroid.tar.zst redroid.tar.zst.part-
           ls -lh redroid.tar.zst.part-*
@@ -22,5 +29,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: redroid-13
-          name: redroid 13 base image
+          name: redroid base image
           files: redroid.tar.zst.part-*
