@@ -1,0 +1,26 @@
+name: export-redroid
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Pull image
+        run: docker pull redroid/redroid:13.0.0
+      - name: Export and compress
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq zstd
+          docker save redroid/redroid:13.0.0 | zstd -T0 -3 -o redroid.tar.zst
+          ls -lh redroid.tar.zst
+          split -b 1800M redroid.tar.zst redroid.tar.zst.part-
+          ls -lh redroid.tar.zst.part-*
+      - name: Upload release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: redroid-13
+          name: redroid 13 base image
+          files: redroid.tar.zst.part-*
